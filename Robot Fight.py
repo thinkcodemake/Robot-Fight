@@ -145,6 +145,8 @@ class Robot(pygame.sprite.Sprite):
 
             self.action_switch_count = 0
 
+            self.action()
+
         self.action_switch_count += 1
         
         self.move()
@@ -165,6 +167,31 @@ class Robot(pygame.sprite.Sprite):
             self.rect.x = 0
         elif self.rect.x >= RobotFight.SCREEN_WIDTH - Robot.WIDTH:
             self.rect.x = RobotFight.SCREEN_WIDTH - Robot.WIDTH
+
+    def action(self):
+
+        action = self.genome[self.action_phase + 9]
+        
+        if action == 0:
+            pass
+        elif action == 1:
+            self._perform_action(self.genome.arm_one)
+        elif action == 2:
+            self._perform_action(self.genome.arm_two)
+
+    def _perform_action(self, weapon):
+        if weapon == 0:
+            pass
+        elif weapon == 1:
+            self.shoot()
+        elif weapon == 2:
+            self.melee()
+
+    def shoot(self):
+        print('Shooting')
+
+    def melee(self):
+        print('Meleeing')
 
 
 if __name__ == '__main__':
