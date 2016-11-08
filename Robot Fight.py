@@ -46,8 +46,12 @@ class RobotFight():
 
         self.timer = pygame.time.Clock()
 
+        self.fighter_bullets = pygame.sprite.Group()
+
         self.fighter_bot = pygame.sprite.Group()
-        self.fighter_bot.add(Robot())
+        self.fighter_bot.add(Robot(self.fighter_bullets))
+
+        
 
     def start(self):
         """
@@ -66,9 +70,11 @@ class RobotFight():
                     self.running = False
 
             self.fighter_bot.update()
+            self.fighter_bullets.update()
             
             self.screen.fill(self.bg_color)
             self.fighter_bot.draw(self.screen)
+            self.fighter_bullets.draw(self.screen)
             
             self.timer.tick(self.FPS)
             pygame.display.update()
@@ -89,7 +95,7 @@ class Robot(pygame.sprite.Sprite):
     MAX_ACTIONS = 6
     GRAVITY = 1
 
-    def __init__(self, genome=None):
+    def __init__(self, bullet_group, genome=None):
         """
         Initialize the Robot.
         """
@@ -112,6 +118,8 @@ class Robot(pygame.sprite.Sprite):
         self.action_switch_count = 0
 
         self.vertical = 0
+
+        self.bullet_group = bullet_group
 
     def generate_random_genome(self):
         """
@@ -224,10 +232,34 @@ class Robot(pygame.sprite.Sprite):
 
     def shoot(self):
         print('Shooting')
+        self.bullet_group.add(Bullet(self.rect.x, self.rect.y, 1))
 
     def melee(self):
         print('Meleeing')
 
+
+class Bullet(pygame.sprite.Sprite):
+
+    SPEED = 5
+
+    def __init__(self, x, y, direction):
+        pygame.sprite.Sprite.__init__(self)
+
+        self.direction = direction
+
+        self.image = pygame.Surface([Robot.HEIGHT / 3, Robot.HEIGHT / 3])
+        self.image.fill((255, 0, 0))  # Temporary Value
+        
+        self.rect = self.image.get_rect()
+
+        self.rect.x = x
+        self.rect.y = y
+
+    def update(self):
+        self.rect.x += (Bullet.SPEED * self.direction)
+        if self.rect.x < 0 or self.rect.x > RobotFight.SCREEN_WIDTH:
+            self.kill()
+            
 
 if __name__ == '__main__':
     game = RobotFight()
