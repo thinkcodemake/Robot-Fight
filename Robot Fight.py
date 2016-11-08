@@ -87,6 +87,7 @@ class Robot(pygame.sprite.Sprite):
     HEIGHT = RobotFight.SCREEN_HEIGHT / 10
     WIDTH = (HEIGHT * 2) / 3
     MAX_ACTIONS = 6
+    GRAVITY = 1
 
     def __init__(self, genome=None):
         """
@@ -109,6 +110,8 @@ class Robot(pygame.sprite.Sprite):
 
         self.action_phase = 1
         self.action_switch_count = 0
+
+        self.vertical = 0
 
     def generate_random_genome(self):
         """
@@ -147,6 +150,8 @@ class Robot(pygame.sprite.Sprite):
 
             self.action()
 
+            self.check_jump()
+
         self.action_switch_count += 1
         
         self.move()
@@ -160,6 +165,15 @@ class Robot(pygame.sprite.Sprite):
         elif self.action_phase % 3 == 2:
             self._move_if_clear(self.genome.move_three, 0)
 
+        if not self.on_floor():
+            self.vertical += Robot.GRAVITY
+            self._move_if_clear(0, self.vertical)
+
+        if self.on_floor():
+            if self.vertical != 0:
+                self.vertical = 0
+            
+
     def _move_if_clear(self, x, y):
         self.rect.move_ip(x, y)
 
@@ -167,6 +181,27 @@ class Robot(pygame.sprite.Sprite):
             self.rect.x = 0
         elif self.rect.x >= RobotFight.SCREEN_WIDTH - Robot.WIDTH:
             self.rect.x = RobotFight.SCREEN_WIDTH - Robot.WIDTH
+
+        if self.rect.y < 0:
+            self.rect.y = 0
+        elif self.rect.y >= RobotFight.SCREEN_HEIGHT - Robot.HEIGHT:
+            self.rect.y = RobotFight.SCREEN_HEIGHT - Robot.HEIGHT
+
+    def on_floor(self):
+        return self.rect.y == RobotFight.SCREEN_HEIGHT - Robot.HEIGHT
+
+    def check_jump(self):
+        if self.action_phase % 3 == 0 & self.genome.jump_one:
+            self.jump()
+        elif self.action_phase % 3 == 1 & self.genome.jump_two:
+            self.jump()
+        elif self.action_phase % 3 == 2 & self.genome.jump_three:
+            self.jump()
+
+    def jump(self):
+        self._move_if_clear(0, -1)
+        self.vertical = -10  # Temp Value, will be based on other stuff
+        print('Jumping')
 
     def action(self):
 
