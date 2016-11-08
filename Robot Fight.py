@@ -29,6 +29,7 @@ class RobotFight():
 
     SCREEN_WIDTH = 1000
     SCREEN_HEIGHT = 500
+    FPS = 60
 
     def __init__(self):
         """
@@ -69,7 +70,7 @@ class RobotFight():
             self.screen.fill(self.bg_color)
             self.fighter_bot.draw(self.screen)
             
-            self.timer.tick(60)
+            self.timer.tick(self.FPS)
             pygame.display.update()
             
         pygame.quit()
@@ -85,6 +86,7 @@ class Robot(pygame.sprite.Sprite):
     MAX_MOVE = 10
     HEIGHT = RobotFight.SCREEN_HEIGHT / 10
     WIDTH = (HEIGHT * 2) / 3
+    MAX_ACTIONS = 6
 
     def __init__(self, genome=None):
         """
@@ -102,6 +104,11 @@ class Robot(pygame.sprite.Sprite):
         self.image.fill((255, 0, 0))  # Temporary Values
 
         self.rect = self.image.get_rect()
+        self.rect.move_ip(Robot.WIDTH,
+                          (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
+
+        self.action_phase = 1
+        self.action_switch_count = 0
 
     def generate_random_genome(self):
         """
@@ -125,6 +132,39 @@ class Robot(pygame.sprite.Sprite):
             random.randint(0, 2),  # action_five
             random.randint(0, 2),  # action_six
         )
+
+    def update(self):
+        """
+        Handle logic.
+        """
+        if self.action_switch_count >= RobotFight.FPS:
+            self.action_phase += 1
+
+            if self.action_phase > 6:
+                self.action_phase = 1
+
+            self.action_switch_count = 0
+
+        self.action_switch_count += 1
+        
+        self.move()
+
+    def move(self):
+        
+        if self.action_phase % 3 == 0:
+            self._move_if_clear(self.genome.move_one, 0)
+        elif self.action_phase % 3 == 1:
+            self._move_if_clear(self.genome.move_two, 0)
+        elif self.action_phase % 3 == 2:
+            self._move_if_clear(self.genome.move_three, 0)
+
+    def _move_if_clear(self, x, y):
+        self.rect.move_ip(x, y)
+
+        if self.rect.x < 0:
+            self.rect.x = 0
+        elif self.rect.x >= RobotFight.SCREEN_WIDTH - Robot.WIDTH:
+            self.rect.x = RobotFight.SCREEN_WIDTH - Robot.WIDTH
 
 
 if __name__ == '__main__':
