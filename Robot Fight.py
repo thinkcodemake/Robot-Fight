@@ -98,7 +98,7 @@ class Robot(pygame.sprite.Sprite):
     MAX_ACTIONS = 6
     GRAVITY = 1
 
-    def __init__(self, bullet_group, melee_group, genome=None):
+    def __init__(self, bullet_group, melee_group, genome=None, color=None):
         """
         Initialize the Robot.
         """
@@ -110,8 +110,15 @@ class Robot(pygame.sprite.Sprite):
         else:
             self.genome = genome
 
+        if color is None:
+            self.color = (random.randint(10, 245),
+                          random.randint(10, 245),
+                          random.randint(10, 245))
+        else:
+            self.color = color
+
         self.image = pygame.Surface([Robot.WIDTH, Robot.HEIGHT])  # Temporary Values
-        self.image.fill((255, 0, 0))  # Temporary Values
+        self.image.fill(self.color)
 
         self.rect = self.image.get_rect()
         self.rect.move_ip(Robot.WIDTH,
@@ -236,7 +243,7 @@ class Robot(pygame.sprite.Sprite):
 
     def shoot(self):
         print('Shooting')
-        self.bullet_group.add(Bullet(self.rect.x, self.rect.y, 1))
+        self.bullet_group.add(Bullet(self, 1))
 
     def melee(self):
         print('Meleeing')
@@ -247,18 +254,18 @@ class Bullet(pygame.sprite.Sprite):
 
     SPEED = 5
 
-    def __init__(self, x, y, direction):
+    def __init__(self, attacker, direction):
         pygame.sprite.Sprite.__init__(self)
 
         self.direction = direction
 
         self.image = pygame.Surface([Robot.HEIGHT / 3, Robot.HEIGHT / 3])
-        self.image.fill((255, 0, 0))  # Temporary Value
+        self.image.fill(attacker.color)  # Temporary Value
         
         self.rect = self.image.get_rect()
 
-        self.rect.x = x
-        self.rect.y = y
+        self.rect.x = attacker.rect.x
+        self.rect.y = attacker.rect.y
 
     def update(self):
         self.rect.x += (Bullet.SPEED * self.direction)
@@ -278,7 +285,12 @@ class MeleeRange(pygame.sprite.Sprite):
             ]
 
         self.image = pygame.Surface(area)
-        self.image.fill((200, 0, 0))  # Temporary Value
+
+        color = (attacker.color[0] - 10,
+                 attacker.color[1] - 10,
+                 attacker.color[2] - 10)
+        
+        self.image.fill(color)
 
         self.rect = self.image.get_rect()
         self.rect.center = attacker.rect.center
