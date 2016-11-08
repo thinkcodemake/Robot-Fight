@@ -47,9 +47,10 @@ class RobotFight():
         self.timer = pygame.time.Clock()
 
         self.fighter_bullets = pygame.sprite.Group()
+        self.fighter_melee = pygame.sprite.Group()
 
         self.fighter_bot = pygame.sprite.Group()
-        self.fighter_bot.add(Robot(self.fighter_bullets))
+        self.fighter_bot.add(Robot(self.fighter_bullets, self.fighter_melee))
 
         
 
@@ -71,8 +72,10 @@ class RobotFight():
 
             self.fighter_bot.update()
             self.fighter_bullets.update()
+            self.fighter_melee.update()
             
             self.screen.fill(self.bg_color)
+            self.fighter_melee.draw(self.screen)
             self.fighter_bot.draw(self.screen)
             self.fighter_bullets.draw(self.screen)
             
@@ -95,7 +98,7 @@ class Robot(pygame.sprite.Sprite):
     MAX_ACTIONS = 6
     GRAVITY = 1
 
-    def __init__(self, bullet_group, genome=None):
+    def __init__(self, bullet_group, melee_group, genome=None):
         """
         Initialize the Robot.
         """
@@ -120,6 +123,7 @@ class Robot(pygame.sprite.Sprite):
         self.vertical = 0
 
         self.bullet_group = bullet_group
+        self.melee_group = melee_group
 
     def generate_random_genome(self):
         """
@@ -236,6 +240,7 @@ class Robot(pygame.sprite.Sprite):
 
     def melee(self):
         print('Meleeing')
+        self.melee_group.add(MeleeRange(self))
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -259,7 +264,36 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.x += (Bullet.SPEED * self.direction)
         if self.rect.x < 0 or self.rect.x > RobotFight.SCREEN_WIDTH:
             self.kill()
-            
+
+class MeleeRange(pygame.sprite.Sprite):
+
+    SIZE = Robot.WIDTH
+
+    def __init__(self, attacker):
+        pygame.sprite.Sprite.__init__(self)
+
+        area = [
+            (Robot.WIDTH + (MeleeRange.SIZE * 2)),
+            (Robot.HEIGHT + (MeleeRange.SIZE * 2))
+            ]
+
+        self.image = pygame.Surface(area)
+        self.image.fill((200, 0, 0))  # Temporary Value
+
+        self.rect = self.image.get_rect()
+        self.rect.center = attacker.rect.center
+
+        self.attacker = attacker
+
+        self.life = 0
+
+    def update(self):
+        self.life += 1
+
+        self.rect.center = self.attacker.rect.center
+
+        if self.life > RobotFight.FPS:
+            self.kill()
 
 if __name__ == '__main__':
     game = RobotFight()
