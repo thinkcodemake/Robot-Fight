@@ -31,10 +31,12 @@ class RobotFight():
     SCREEN_HEIGHT = 500
     FPS = 60
 
-    def __init__(self):
+    def __init__(self, debug=False):
         """
         Initialize game.
         """
+
+        self.debug = debug
 
         pygame.init()
 
@@ -52,7 +54,12 @@ class RobotFight():
         self.fighter_bot = pygame.sprite.Group()
         self.fighter_bot.add(Robot(self.fighter_bullets, self.fighter_melee))
 
-        
+        self.debug_genome_font = pygame.font.Font(None, 25)
+        self.set_genome_display()
+
+        self.debug_action_font = pygame.font.Font(None, 25)
+        self.set_action_display()
+        # TODO: DEBUG DISPLAY
 
     def start(self):
         """
@@ -69,6 +76,16 @@ class RobotFight():
             for event in pygame.event.get():
                 if event.type == QUIT:
                     self.running = False
+                elif event.type == KEYDOWN:
+                    if event.key == K_n:
+                        self.fighter_bot.empty()
+                        self.fighter_bullets.empty()
+                        self.fighter_melee.empty()
+
+                        self.fighter_bot.add(
+                            Robot(self.fighter_bullets,
+                                  self.fighter_melee))
+                        
 
             self.fighter_bot.update()
             self.fighter_bullets.update()
@@ -78,12 +95,37 @@ class RobotFight():
             self.fighter_melee.draw(self.screen)
             self.fighter_bot.draw(self.screen)
             self.fighter_bullets.draw(self.screen)
-            
+
+            if self.debug:
+                self.set_genome_display()
+                self.screen.blit(
+                    self.debug_genome_display,
+                    self.debug_genome_display.get_rect())
+
+                self.set_action_display()
+                self.screen.blit(
+                    self.debug_action_display,
+                    self.debug_action_display.get_rect(top=25))
+                
             self.timer.tick(self.FPS)
             pygame.display.update()
             
         pygame.quit()
 
+    def set_genome_display(self):
+        text = '{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}'
+        text = text.format(*self.fighter_bot.sprites()[0].genome)
+        self.debug_genome_display = self.debug_genome_font.render(text,
+                                                                  1,
+                                                                  (0, 0, 0))
+    def set_action_display(self):
+        bot = self.fighter_bot.sprites()[0]
+        text = 'Action #: {}  Action: {}'
+        text = text.format(bot.action_phase, bot.genome[bot.action_phase + 9])
+        self.debug_action_display = self.debug_action_font.render(text,
+                                                                  1,
+                                                                  (0,0,0))
+        
 
 class Robot(pygame.sprite.Sprite):
 
@@ -219,7 +261,7 @@ class Robot(pygame.sprite.Sprite):
 
     def jump(self):
         self._move_if_clear(0, -1)
-        self.vertical = -10  # Temp Value, will be based on other stuff
+        self.vertical = -10 * (self.genome.chest_size / self.genome.base_size)
         print('Jumping')
 
     def action(self):
@@ -260,7 +302,10 @@ class Bullet(pygame.sprite.Sprite):
         self.direction = direction
 
         self.image = pygame.Surface([Robot.HEIGHT / 3, Robot.HEIGHT / 3])
-        self.image.fill(attacker.color)  # Temporary Value
+        color = (attacker.color[0] + 10,
+                 attacker.color[1] + 10,
+                 attacker.color[2] + 10)
+        self.image.fill(color)
         
         self.rect = self.image.get_rect()
 
@@ -308,5 +353,5 @@ class MeleeRange(pygame.sprite.Sprite):
             self.kill()
 
 if __name__ == '__main__':
-    game = RobotFight()
+    game = RobotFight(debug=True)
     game.start()
