@@ -125,7 +125,33 @@ class RobotFight():
         self.debug_action_display = self.debug_action_font.render(text,
                                                                   1,
                                                                   (0,0,0))
+
+class Generation():
+
+    @classmethod
+    def new_random_generation(cls, size):
+        """
+        Return a new Generation with size number of random robots.
+        """
+        robots = []
         
+        for i in range(size):
+            robots.add(Robot.new_random_robot())
+
+        return cls(robots)
+
+
+    def __init__(self, robots):
+        self.robots = robots
+
+
+    def __iter__(self):
+        return iter(self.robots)
+    
+
+    def get_size(self):
+        return len(self.robots)
+
 
 class Robot(pygame.sprite.Sprite):
 
@@ -140,41 +166,8 @@ class Robot(pygame.sprite.Sprite):
     MAX_ACTIONS = 6
     GRAVITY = 1
 
-    def __init__(self, bullet_group, melee_group, genome=None, color=None):
-        """
-        Initialize the Robot.
-        """
-
-        pygame.sprite.Sprite.__init__(self)
-        
-        if genome is None:
-            self.genome = self.generate_random_genome()
-        else:
-            self.genome = genome
-
-        if color is None:
-            self.color = (random.randint(10, 245),
-                          random.randint(10, 245),
-                          random.randint(10, 245))
-        else:
-            self.color = color
-
-        self.image = pygame.Surface([Robot.WIDTH, Robot.HEIGHT])  # Temporary Values
-        self.image.fill(self.color)
-
-        self.rect = self.image.get_rect()
-        self.rect.move_ip(Robot.WIDTH,
-                          (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
-
-        self.action_phase = 1
-        self.action_switch_count = 0
-
-        self.vertical = 0
-
-        self.bullet_group = bullet_group
-        self.melee_group = melee_group
-
-    def generate_random_genome(self):
+    @classmethod
+    def generate_random_genome(cls):
         """
         Return a randomly generated genome.
         """
@@ -196,6 +189,42 @@ class Robot(pygame.sprite.Sprite):
             random.randint(0, 2),  # action_five
             random.randint(0, 2),  # action_six
         )
+
+    def __init__(self, genome, color=None):
+        """
+        Initialize the Robot.
+        """
+
+        pygame.sprite.Sprite.__init__(self)
+        
+        self.genome = genome
+
+        if color is None:
+            self.color = (random.randint(10, 245),
+                          random.randint(10, 245),
+                          random.randint(10, 245))
+        else:
+            self.color = color
+
+        self.image = pygame.Surface([Robot.WIDTH, Robot.HEIGHT])  # Temporary Values
+        self.image.fill(self.color)
+
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(Robot.WIDTH,
+                          (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
+
+        self.action_phase = 1
+        self.action_switch_count = 0
+
+        self.vertical = 0
+
+        self.fitness = 0
+
+        # TODO: Rework. Singleton pattern for Game or Match.
+        self.bullet_group = bullet_group
+        self.melee_group = melee_group
+
+    
 
     def update(self):
         """
