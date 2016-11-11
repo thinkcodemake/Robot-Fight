@@ -126,6 +126,35 @@ class RobotFight():
                                                                   1,
                                                                   (0,0,0))
 
+class Match():
+
+    def __init__(self, attacker, defender):
+
+        self.attacker = pygame.sprite.Group()
+        self.defender = pygame.sprite.Group()
+        self.att_bullets = pygame.sprite.Group()
+        self.def_bullets = pygame.sprite.Group()
+        self.att_melee = pygame.sprite.Group()
+        self.def_melee = pygame.sprite.Group()
+
+        self.attacker.add(attacker)
+        self.defender.add(defender)
+
+        self.running = True
+        
+    def update(self):
+        self.attacker.update()
+        self.defender.update()
+
+    def draw(self, screen):
+        self.attacker.draw(screen)
+        self.defender.draw(screen)
+
+    def end(self):
+        self.running = False
+        # TODO: Set Fitness
+        # TODO: Empty Groups
+
 class Generation():
 
     @classmethod
