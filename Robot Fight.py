@@ -102,11 +102,14 @@ class RobotFight():
                 self.screen.blit(
                     self.def_hp_display,
                     def_hp_rect)
+
+                self.match.check_end()
                 
 
             else:
                 try:
                     self.match = Match(next(self.gen_iter), self.defender)
+                    # TODO: Display Match End Condition
                 except StopIteration:
                     self.new_round()
 
@@ -224,6 +227,11 @@ class Match():
         
         # TODO: Set Fitness
 
+    def check_end(self):
+        if self.get_defender().hp <= 0:
+            self.end()
+            return
+
     def check_collisions(self):
         attacker = self.get_attacker()
         defender = self.get_defender()
@@ -233,20 +241,28 @@ class Match():
                 defender.hit(bullet.DAMAGE)
                 bullet.kill()
 
+                attacker.fitness += bullet.DAMAGE
+
         for bullet in self.def_bullets:
             if pygame.sprite.collide_rect(bullet, attacker):
                 attacker.hit(bullet.DAMAGE)
                 bullet.kill()
+
+                attacker.fitness -= bullet.DAMAGE
 
         for melee in self.att_melee:
             if pygame.sprite.collide_rect(melee, defender):
                 defender.hit(melee.DAMAGE)
                 melee.kill()
 
+                attacker.fitness += melee.DAMAGE
+
         for melee in self.def_melee:
             if pygame.sprite.collide_rect(melee, attacker):
                 attacker.hit(melee.DAMAGE)
                 melee.kill()
+
+                attacker.fitness -= melee.DAMAGE
 
 class Generation():
 
@@ -328,7 +344,7 @@ class Robot(pygame.sprite.Sprite):
     @classmethod
     def new_dumb_bot(cls):
         genome = Genome(
-            cls.MIN_CHEST,
+            cls.MAX_CHEST // 2,
             cls.MIN_BASE,
             *[0 for i in range(14)]
             )
