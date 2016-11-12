@@ -54,6 +54,9 @@ class RobotFight():
         self.debug_action_font = pygame.font.Font(None, 25)
         self.set_action_display()
 
+        self.att_hp_font = pygame.font.Font(None, 25)
+        self.def_hp_font = pygame.font.Font(None, 25)
+
         self.current_gen = Generation.new_random_generation(10)
         self.match = None
         self.gen_iter = None
@@ -85,9 +88,21 @@ class RobotFight():
 
             if self.match.running:
                 self.match.update()
-            
+
+                self.set_att_hp_display()
+                self.set_def_hp_display()
+
                 self.screen.fill(self.bg_color)
                 self.match.draw(self.screen)
+                self.screen.blit(
+                    self.att_hp_display,
+                    self.att_hp_display.get_rect())
+                def_hp_rect = self.def_hp_display.get_rect()
+                def_hp_rect.move_ip(0, 25)
+                self.screen.blit(
+                    self.def_hp_display,
+                    def_hp_rect)
+                
 
             else:
                 try:
@@ -132,6 +147,19 @@ class RobotFight():
                                                                   (0,0,0))
         """
         pass
+
+    def set_att_hp_display(self):
+        text = 'Attacker HP: {}'
+        att = self.match.get_attacker()
+        text = text.format(att.hp)
+        self.att_hp_display = self.att_hp_font.render(text, 1, (0,0,0))
+
+    def set_def_hp_display(self):
+        text = 'Defender HP: {}'
+        defen = self.match.get_defender()
+        text = text.format(defen.hp)
+        self.def_hp_display = self.def_hp_font.render(text, 1, (0,0,0))
+
     
 class Match():
 
@@ -152,12 +180,18 @@ class Match():
 
         self.running = True
 
-        self.attacker.sprites()[0]._move_if_clear(
+        self.get_attacker()._move_if_clear(
             Robot.WIDTH,
             (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
-        self.defender.sprites()[0]._move_if_clear(
+        self.get_defender()._move_if_clear(
             RobotFight.SCREEN_WIDTH - (Robot.WIDTH * 2),
             (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
+
+    def get_attacker(self):
+        return self.attacker.sprites()[0]
+
+    def get_defender(self):
+        return self.defender.sprites()[0]
         
     def update(self):
         self.attacker.update()
@@ -166,6 +200,8 @@ class Match():
         self.def_bullets.update()
         self.att_melee.update()
         self.def_melee.update()
+
+        self.check_collisions()
 
     def draw(self, screen):
         self.attacker.draw(screen)
@@ -177,6 +213,7 @@ class Match():
 
     def end(self):
         self.running = False
+        self.get_defender().reset()
 
         self.attacker.empty()
         self.defender.empty()
@@ -186,6 +223,30 @@ class Match():
         self.def_melee.empty()
         
         # TODO: Set Fitness
+
+    def check_collisions(self):
+        attacker = self.get_attacker()
+        defender = self.get_defender()
+        
+        for bullet in self.att_bullets:
+            if pygame.sprite.collide_rect(bullet, defender):
+                defender.hit(bullet.DAMAGE)
+                bullet.kill()
+
+        for bullet in self.def_bullets:
+            if pygame.sprite.collide_rect(bullet, attacker):
+                attacker.hit(bullet.DAMAGE)
+                bullet.kill()
+
+        for melee in self.att_melee:
+            if pygame.sprite.collide_rect(melee, defender):
+                defender.hit(melee.DAMAGE)
+                melee.kill()
+
+        for melee in self.def_melee:
+            if pygame.sprite.collide_rect(melee, attacker):
+                attacker.hit(melee.DAMAGE)
+                melee.kill()
 
 class Generation():
 
@@ -282,6 +343,8 @@ class Robot(pygame.sprite.Sprite):
         
         self.genome = genome
 
+        self.hp = self.genome.chest_size * 2
+
         if color is None:
             self.color = (random.randint(10, 245),
                           random.randint(10, 245),
@@ -303,6 +366,10 @@ class Robot(pygame.sprite.Sprite):
 
         self.bullet_group = None
         self.melee_group = None
+
+    def reset(self):
+        self.hp = self.genome.chest_size * 2
+        self.rect.topleft = (0, 0)
 
     def set_attack_groups(self, bullet, melee):
         self.bullet_group = bullet
@@ -402,10 +469,14 @@ class Robot(pygame.sprite.Sprite):
         print('Meleeing')
         self.melee_group.add(MeleeRange(self))
 
+    def hit(self, damage):
+        self.hp -= damage
+
 
 class Bullet(pygame.sprite.Sprite):
 
     SPEED = 5
+    DAMAGE = 10
 
     def __init__(self, attacker, direction):
         pygame.sprite.Sprite.__init__(self)
@@ -431,6 +502,7 @@ class Bullet(pygame.sprite.Sprite):
 class MeleeRange(pygame.sprite.Sprite):
 
     SIZE = Robot.WIDTH
+    DAMAGE = 40
 
     def __init__(self, attacker):
         pygame.sprite.Sprite.__init__(self)
