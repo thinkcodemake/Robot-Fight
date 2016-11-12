@@ -56,11 +56,12 @@ class RobotFight():
 
         self.att_hp_font = pygame.font.Font(None, 25)
         self.def_hp_font = pygame.font.Font(None, 25)
+        self.gen_font = pygame.font.Font(None, 25)
 
         self.current_gen = Generation.new_random_generation(10)
         self.match = None
         self.gen_iter = None
-        self.round_num = 1
+        self.gen_num = 1
 
         self.defender = Robot.new_dumb_bot()
 
@@ -91,17 +92,26 @@ class RobotFight():
 
                 self.set_att_hp_display()
                 self.set_def_hp_display()
+                self.set_gen_display()
 
                 self.screen.fill(self.bg_color)
                 self.match.draw(self.screen)
+
                 self.screen.blit(
                     self.att_hp_display,
                     self.att_hp_display.get_rect())
                 def_hp_rect = self.def_hp_display.get_rect()
                 def_hp_rect.move_ip(0, 25)
+
                 self.screen.blit(
                     self.def_hp_display,
                     def_hp_rect)
+
+                gen_rect = self.gen_display.get_rect()
+                gen_rect.x = RobotFight.SCREEN_WIDTH - gen_rect.width
+                self.screen.blit(
+                    self.gen_display,
+                    gen_rect)
 
                 ended = self.match.check_end()
 
@@ -127,8 +137,10 @@ class RobotFight():
 
     def new_round(self):
         if self.debug:
+            print()
             print('New Round')
-        self.round_num += 1
+            print('=========')
+        self.gen_num += 1
         self.current_gen = self.current_gen.breed()
         self.gen_iter = iter(self.current_gen)
         self.match = Match(next(self.gen_iter), self.defender)
@@ -166,8 +178,15 @@ class RobotFight():
         text = text.format(defen.hp)
         self.def_hp_display = self.def_hp_font.render(text, 1, (0,0,0))
 
+    def set_gen_display(self):
+        text = 'Generation: {}'
+        text = text.format(self.gen_num)
+        self.gen_display = self.gen_font.render(text, 1, (0,0,0))
+
     
 class Match():
+
+    MAX_TIME = RobotFight.FPS * 60
 
     def __init__(self, attacker, defender):
 
@@ -193,6 +212,8 @@ class Match():
             RobotFight.SCREEN_WIDTH - (Robot.WIDTH * 2),
             (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
 
+        self.match_timer = 0
+
     def get_attacker(self):
         return self.attacker.sprites()[0]
 
@@ -200,6 +221,8 @@ class Match():
         return self.defender.sprites()[0]
         
     def update(self):
+        self.match_timer += 1
+        
         self.attacker.update()
         self.defender.update()
         self.att_bullets.update()
@@ -228,8 +251,6 @@ class Match():
         self.att_melee.empty()
         self.def_melee.empty()
         
-        # TODO: Set Fitness
-
     def check_end(self):
         if self.get_defender().hp <= 0:
             self.end()
@@ -237,6 +258,9 @@ class Match():
         if self.get_attacker().hit_oob_limit():
             self.end()
             return 'Out of Bounds!'
+        if self.match_timer >= Match.MAX_TIME:
+            self.end()
+            return 'Ran out of time!'
         return False
 
     def check_collisions(self):
@@ -303,8 +327,45 @@ class Generation():
         """
         Return a new Generation bred from current Generation.
         """
-        # TODO: Breeding Algorithm
-        return self.new_random_generation(self.get_size())
+
+        self.robots.sort(key=lambda x: x.fitness, reverse=True)
+
+        new_robots = []
+
+        for i, bot in enumerate(self.robots):
+            choice = random.randint(0, 4)
+            while i == choice:
+                choice = random.randint(0, 4)
+
+            new_robots.append(self.breed_bot(bot, self.robots[i]))
+
+        return Generation(new_robots, self.mutation)
+
+    def breed_bot(self, left, right):
+        new_genome = []
+        for i, value in enumerate(left.genome):
+            if random.random() <= self.mutation:
+                if i == 0:
+                    new_genome.append(Robot.get_random_chest())
+                elif i == 1:
+                    new_genome.append(Robot.get_random_base())
+                elif i <= 3:
+                    new_genome.append(Robot.get_random_weapon())
+                elif i <= 6:
+                    new_genome.append(Robot.get_random_move())
+                elif i <= 9:
+                    new_genome.append(Robot.get_random_jump())
+                elif i <= 15:
+                    new_genome.append(Robot.get_random_action())
+                else:
+                    new_genome.append(0)
+            else:
+                if random.randint(0, 1):
+                    new_genome.append(value)
+                else:
+                    new_genome.append(right.genome[i])
+
+        return Robot(Genome(*new_genome))
 
 
 class Robot(pygame.sprite.Sprite):
@@ -327,23 +388,47 @@ class Robot(pygame.sprite.Sprite):
         Return a randomly generated genome.
         """
         return Genome(
-            random.randint(Robot.MIN_CHEST, Robot.MAX_CHEST),  # chest_size
-            random.randint(Robot.MIN_BASE, Robot.MAX_BASE),  # base_size
-            random.randint(0, Robot.NUM_WEAPONS),  # arm_one
-            random.randint(0, Robot.NUM_WEAPONS),  # arm_two
-            random.randint(-Robot.MAX_MOVE, Robot.MAX_MOVE),  # move_one
-            random.randint(-Robot.MAX_MOVE, Robot.MAX_MOVE),  # move_two
-            random.randint(-Robot.MAX_MOVE, Robot.MAX_MOVE),  # move_three
-            random.randint(0, 1),  # jump_one
-            random.randint(0, 1),  # jump_two
-            random.randint(0, 1),  # jump_three
-            random.randint(0, 2),  # action_one
-            random.randint(0, 2),  # action_two
-            random.randint(0, 2),  # action_three
-            random.randint(0, 2),  # action_four
-            random.randint(0, 2),  # action_five
-            random.randint(0, 2),  # action_six
+            cls.get_random_chest(),  # chest_size
+            cls.get_random_base(),  # base_size
+            cls.get_random_weapon(),  # arm_one
+            cls.get_random_weapon(),  # arm_two
+            cls.get_random_move(),  # move_one
+            cls.get_random_move(),  # move_two
+            cls.get_random_move(),  # move_three
+            cls.get_random_jump(),  # jump_one
+            cls.get_random_jump(),  # jump_two
+            cls.get_random_jump(),  # jump_three
+            cls.get_random_action(),  # action_one
+            cls.get_random_action(),  # action_two
+            cls.get_random_action(),  # action_three
+            cls.get_random_action(),  # action_four
+            cls.get_random_action(),  # action_five
+            cls.get_random_action(),  # action_six
         )
+
+    @classmethod
+    def get_random_chest(cls):
+        return random.randint(Robot.MIN_CHEST, Robot.MAX_CHEST)
+
+    @classmethod
+    def get_random_base(cls):
+        return random.randint(Robot.MIN_BASE, Robot.MAX_BASE)
+
+    @classmethod
+    def get_random_weapon(cls):
+        return random.randint(0, Robot.NUM_WEAPONS)
+
+    @classmethod
+    def get_random_move(cls):
+        return random.randint(-Robot.MAX_MOVE, Robot.MAX_MOVE)
+
+    @classmethod
+    def get_random_jump(cls):
+        return random.randint(0, 1)
+
+    @classmethod
+    def get_random_action(cls):
+        return random.randint(0, 2)
 
     @classmethod
     def new_random_robot(cls):
