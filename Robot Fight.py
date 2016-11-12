@@ -79,6 +79,10 @@ class RobotFight():
                 if event.type == QUIT:
                     self.running = False
 
+                if event.type == KEYDOWN:
+                    if event.key == K_n:
+                        self.match.end()
+
             if self.match.running:
                 self.match.update()
             
@@ -100,12 +104,12 @@ class RobotFight():
             
         pygame.quit()
 
-    def new_round():
+    def new_round(self):
         if self.debug:
             print('New Round')
         self.round_num += 1
-        self.generation = self.generation.breed()
-        self.gen_iter = iter(self.generation)
+        self.current_gen = self.current_gen.breed()
+        self.gen_iter = iter(self.current_gen)
         self.match = Match(next(self.gen_iter), self.defender)
 
     def set_genome_display(self):
