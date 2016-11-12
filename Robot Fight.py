@@ -103,7 +103,10 @@ class RobotFight():
                     self.def_hp_display,
                     def_hp_rect)
 
-                self.match.check_end()
+                ended = self.match.check_end()
+
+                if ended:
+                    print(ended)
                 
 
             else:
@@ -230,7 +233,11 @@ class Match():
     def check_end(self):
         if self.get_defender().hp <= 0:
             self.end()
-            return
+            return 'Defender Defeated!'
+        if self.get_attacker().hit_oob_limit():
+            self.end()
+            return 'Out of Bounds!'
+        return False
 
     def check_collisions(self):
         attacker = self.get_attacker()
@@ -312,6 +319,7 @@ class Robot(pygame.sprite.Sprite):
     WIDTH = (HEIGHT * 2) / 3
     MAX_ACTIONS = 6
     GRAVITY = 1
+    OOB_LIMIT = RobotFight.FPS * 3
 
     @classmethod
     def generate_random_genome(cls):
@@ -383,6 +391,8 @@ class Robot(pygame.sprite.Sprite):
         self.bullet_group = None
         self.melee_group = None
 
+        self.oob_count = 0
+
     def reset(self):
         self.hp = self.genome.chest_size * 2
         self.rect.topleft = (0, 0)
@@ -432,14 +442,15 @@ class Robot(pygame.sprite.Sprite):
     def _move_if_clear(self, x, y):
         self.rect.move_ip(x, y)
 
-        if self.rect.x < 0:
-            self.rect.x = 0
+        if self.rect.x < 0 - Robot.WIDTH:
+            self.oob_count += 1
         elif self.rect.x >= RobotFight.SCREEN_WIDTH - Robot.WIDTH:
-            self.rect.x = RobotFight.SCREEN_WIDTH - Robot.WIDTH
+            self.oob_count += 1
+        else:
+            if self.oob_count > 0:
+                self.oob_count -= 1
 
-        if self.rect.y < 0:
-            self.rect.y = 0
-        elif self.rect.y >= RobotFight.SCREEN_HEIGHT - Robot.HEIGHT:
+        if self.rect.y >= RobotFight.SCREEN_HEIGHT - Robot.HEIGHT:
             self.rect.y = RobotFight.SCREEN_HEIGHT - Robot.HEIGHT
 
     def on_floor(self):
@@ -456,7 +467,6 @@ class Robot(pygame.sprite.Sprite):
     def jump(self):
         self._move_if_clear(0, -1)
         self.vertical = -10 * (self.genome.chest_size / self.genome.base_size)
-        print('Jumping')
 
     def action(self):
 
@@ -478,15 +488,16 @@ class Robot(pygame.sprite.Sprite):
             self.melee()
 
     def shoot(self):
-        print('Shooting')
         self.bullet_group.add(Bullet(self, 1))
 
     def melee(self):
-        print('Meleeing')
         self.melee_group.add(MeleeRange(self))
 
     def hit(self, damage):
         self.hp -= damage
+
+    def hit_oob_limit(self):
+        return self.oob_count >= self.OOB_LIMIT
 
 
 class Bullet(pygame.sprite.Sprite):
