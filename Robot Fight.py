@@ -48,23 +48,25 @@ class RobotFight():
 
         self.timer = pygame.time.Clock()
 
-        self.fighter_bullets = pygame.sprite.Group()
-        self.fighter_melee = pygame.sprite.Group()
-
-        self.fighter_bot = pygame.sprite.Group()
-        self.fighter_bot.add(Robot(self.fighter_bullets, self.fighter_melee))
-
         self.debug_genome_font = pygame.font.Font(None, 25)
         self.set_genome_display()
 
         self.debug_action_font = pygame.font.Font(None, 25)
         self.set_action_display()
-        # TODO: DEBUG DISPLAY
+
+        self.current_gen = Generation.new_random_generation(10)
+        self.match = None
+        self.gen_iter = None
+        self.round_num = 1
+
+        self.defender = Robot.new_dumb_bot()
 
     def start(self):
         """
         Start Robot Fight.
         """
+        self.gen_iter = iter(self.current_gen)
+        self.match = Match(next(self.gen_iter), self.defender)
         self.main_loop()
 
     def main_loop(self):
@@ -76,56 +78,57 @@ class RobotFight():
             for event in pygame.event.get():
                 if event.type == QUIT:
                     self.running = False
-                elif event.type == KEYDOWN:
-                    if event.key == K_n:
-                        self.fighter_bot.empty()
-                        self.fighter_bullets.empty()
-                        self.fighter_melee.empty()
 
-                        self.fighter_bot.add(
-                            Robot(self.fighter_bullets,
-                                  self.fighter_melee))
-                        
-
-            self.fighter_bot.update()
-            self.fighter_bullets.update()
-            self.fighter_melee.update()
+            if self.match.running:
+                self.match.update()
             
-            self.screen.fill(self.bg_color)
-            self.fighter_melee.draw(self.screen)
-            self.fighter_bot.draw(self.screen)
-            self.fighter_bullets.draw(self.screen)
+                self.screen.fill(self.bg_color)
+                self.match.draw(self.screen)
+
+            else:
+                try:
+                    self.match = Match(next(self.gen_iter), self.defender)
+                except StopIteration:
+                    self.new_round()
 
             if self.debug:
-                self.set_genome_display()
-                self.screen.blit(
-                    self.debug_genome_display,
-                    self.debug_genome_display.get_rect())
-
-                self.set_action_display()
-                self.screen.blit(
-                    self.debug_action_display,
-                    self.debug_action_display.get_rect(top=25))
+                # Debug Display
+                pass
                 
             self.timer.tick(self.FPS)
             pygame.display.update()
             
         pygame.quit()
 
+    def new_round():
+        if self.debug:
+            print('New Round')
+        self.round_num += 1
+        self.generation = self.generation.breed()
+        self.gen_iter = iter(self.generation)
+        self.match = Match(next(self.gen_iter), self.defender)
+
     def set_genome_display(self):
+        """
         text = '{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}'
         text = text.format(*self.fighter_bot.sprites()[0].genome)
         self.debug_genome_display = self.debug_genome_font.render(text,
                                                                   1,
                                                                   (0, 0, 0))
+        """
+        pass
+    
     def set_action_display(self):
+        """
         bot = self.fighter_bot.sprites()[0]
         text = 'Action #: {}  Action: {}'
         text = text.format(bot.action_phase, bot.genome[bot.action_phase + 9])
         self.debug_action_display = self.debug_action_font.render(text,
                                                                   1,
                                                                   (0,0,0))
-
+        """
+        pass
+    
 class Match():
 
     def __init__(self, attacker, defender):
@@ -140,38 +143,64 @@ class Match():
         self.attacker.add(attacker)
         self.defender.add(defender)
 
+        attacker.set_attack_groups(self.att_bullets, self.att_melee)
+        defender.set_attack_groups(self.def_bullets, self.def_melee)
+
         self.running = True
+
+        self.attacker.sprites()[0]._move_if_clear(
+            Robot.WIDTH,
+            (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
+        self.defender.sprites()[0]._move_if_clear(
+            RobotFight.SCREEN_WIDTH - (Robot.WIDTH * 2),
+            (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
         
     def update(self):
         self.attacker.update()
         self.defender.update()
+        self.att_bullets.update()
+        self.def_bullets.update()
+        self.att_melee.update()
+        self.def_melee.update()
 
     def draw(self, screen):
         self.attacker.draw(screen)
         self.defender.draw(screen)
+        self.att_bullets.draw(screen)
+        self.def_bullets.draw(screen)
+        self.att_melee.draw(screen)
+        self.def_melee.draw(screen)
 
     def end(self):
         self.running = False
+
+        self.attacker.empty()
+        self.defender.empty()
+        self.att_bullets.empty()
+        self.def_bullets.empty()
+        self.att_melee.empty()
+        self.def_melee.empty()
+        
         # TODO: Set Fitness
-        # TODO: Empty Groups
 
 class Generation():
 
     @classmethod
-    def new_random_generation(cls, size):
+    def new_random_generation(cls, size, mutation=0.2):
         """
         Return a new Generation with size number of random robots.
         """
         robots = []
         
         for i in range(size):
-            robots.add(Robot.new_random_robot())
+            robots.append(Robot.new_random_robot())
 
-        return cls(robots)
+        return cls(robots, mutation)
 
 
-    def __init__(self, robots):
+    def __init__(self, robots, mutation):
         self.robots = robots
+        self.mutation = mutation
 
 
     def __iter__(self):
@@ -180,6 +209,14 @@ class Generation():
 
     def get_size(self):
         return len(self.robots)
+
+
+    def breed(self):
+        """
+        Return a new Generation bred from current Generation.
+        """
+        # TODO: Breeding Algorithm
+        return self.new_random_generation(self.get_size())
 
 
 class Robot(pygame.sprite.Sprite):
@@ -219,6 +256,19 @@ class Robot(pygame.sprite.Sprite):
             random.randint(0, 2),  # action_six
         )
 
+    @classmethod
+    def new_random_robot(cls):
+        return cls(cls.generate_random_genome())
+
+    @classmethod
+    def new_dumb_bot(cls):
+        genome = Genome(
+            cls.MIN_CHEST,
+            cls.MIN_BASE,
+            *[0 for i in range(14)]
+            )
+        return cls(genome)
+
     def __init__(self, genome, color=None):
         """
         Initialize the Robot.
@@ -239,8 +289,6 @@ class Robot(pygame.sprite.Sprite):
         self.image.fill(self.color)
 
         self.rect = self.image.get_rect()
-        self.rect.move_ip(Robot.WIDTH,
-                          (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
 
         self.action_phase = 1
         self.action_switch_count = 0
@@ -249,11 +297,12 @@ class Robot(pygame.sprite.Sprite):
 
         self.fitness = 0
 
-        # TODO: Rework. Singleton pattern for Game or Match.
-        self.bullet_group = bullet_group
-        self.melee_group = melee_group
+        self.bullet_group = None
+        self.melee_group = None
 
-    
+    def set_attack_groups(self, bullet, melee):
+        self.bullet_group = bullet
+        self.melee_group = melee
 
     def update(self):
         """
@@ -310,11 +359,11 @@ class Robot(pygame.sprite.Sprite):
         return self.rect.y == RobotFight.SCREEN_HEIGHT - Robot.HEIGHT
 
     def check_jump(self):
-        if self.action_phase % 3 == 0 & self.genome.jump_one:
+        if self.action_phase % 3 == 0 and self.genome.jump_one:
             self.jump()
-        elif self.action_phase % 3 == 1 & self.genome.jump_two:
+        elif self.action_phase % 3 == 1 and self.genome.jump_two:
             self.jump()
-        elif self.action_phase % 3 == 2 & self.genome.jump_three:
+        elif self.action_phase % 3 == 2 and self.genome.jump_three:
             self.jump()
 
     def jump(self):
