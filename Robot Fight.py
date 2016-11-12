@@ -71,6 +71,9 @@ class RobotFight():
         """
         self.gen_iter = iter(self.current_gen)
         self.match = Match(next(self.gen_iter), self.defender)
+
+        print('New Round')
+        print('=========')
         self.main_loop()
 
     def main_loop(self):
@@ -333,11 +336,14 @@ class Generation():
         new_robots = []
 
         for i, bot in enumerate(self.robots):
+            if i == 0:
+                new_robots.append(bot)
+                continue
             choice = random.randint(0, 4)
             while i == choice:
                 choice = random.randint(0, 4)
 
-            new_robots.append(self.breed_bot(bot, self.robots[i]))
+            new_robots.append(self.breed_bot(bot, self.robots[choice]))
 
         return Generation(new_robots, self.mutation)
 
