@@ -116,10 +116,10 @@ class RobotFight():
                     self.gen_display,
                     gen_rect)
 
-                ended = self.match.check_end()
+                ended, fitness = self.match.check_end()
 
                 if ended:
-                    print(ended)
+                    print(fitness, ended)
                 
 
             else:
@@ -255,16 +255,18 @@ class Match():
         self.def_melee.empty()
         
     def check_end(self):
+        ended = False
+        fitness = self.get_attacker().fitness
         if self.get_defender().hp <= 0:
             self.end()
-            return 'Defender Defeated!'
-        if self.get_attacker().hit_oob_limit():
+            ended = 'Defender Defeated!'
+        elif self.get_attacker().hit_oob_limit():
             self.end()
-            return 'Out of Bounds!'
-        if self.match_timer >= Match.MAX_TIME:
+            ended = 'Out of Bounds!'
+        elif self.match_timer >= Match.MAX_TIME:
             self.end()
-            return 'Ran out of time!'
-        return False
+            ended = 'Ran out of time!'
+        return ended, fitness
 
     def check_collisions(self):
         attacker = self.get_attacker()
@@ -337,6 +339,7 @@ class Generation():
 
         for i, bot in enumerate(self.robots):
             if i == 0:
+                bot.reset()
                 new_robots.append(bot)
                 continue
             choice = random.randint(0, 4)
@@ -367,7 +370,7 @@ class Generation():
                     new_genome.append(0)
             else:
                 if random.randint(0, 1):
-                    new_genome.append(value)
+                    new_genome.append(left.genome[i])
                 else:
                     new_genome.append(right.genome[i])
 
@@ -487,6 +490,7 @@ class Robot(pygame.sprite.Sprite):
     def reset(self):
         self.hp = self.genome.chest_size * 2
         self.rect.topleft = (0, 0)
+        self.fitness = 0
 
     def set_attack_groups(self, bullet, melee):
         self.bullet_group = bullet
