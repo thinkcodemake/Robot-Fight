@@ -337,44 +337,26 @@ class Generation():
 
         new_robots = []
 
-        for i, bot in enumerate(self.robots):
-            if i == 0:
+        for i in range((self.get_size() // 2) + 1):
+            if i <= 1:
+                bot = self.robots[i]
                 bot.reset()
                 new_robots.append(bot)
                 continue
-            choice = random.randint(0, 4)
-            while i == choice:
-                choice = random.randint(0, 4)
+            choice_one = random.randint(0, 4)
+            choice_two = random.randint(0, 4)
+            while choice_one == choice_two:
+                choice_two = random.randint(0, 4)
 
-            new_robots.append(self.breed_bot(bot, self.robots[choice]))
+            parent_one = self.robots[choice_one]
+            parent_two = self.robots[choice_two]
+
+            child_one, child_two = parent_one.breed_with(parent_two,
+                                                         self.mutation)           
+            new_robots.append(child_one)
+            new_robots.append(child_two)
 
         return Generation(new_robots, self.mutation)
-
-    def breed_bot(self, left, right):
-        new_genome = []
-        for i, value in enumerate(left.genome):
-            if random.random() <= self.mutation:
-                if i == 0:
-                    new_genome.append(Robot.get_random_chest())
-                elif i == 1:
-                    new_genome.append(Robot.get_random_base())
-                elif i <= 3:
-                    new_genome.append(Robot.get_random_weapon())
-                elif i <= 6:
-                    new_genome.append(Robot.get_random_move())
-                elif i <= 9:
-                    new_genome.append(Robot.get_random_jump())
-                elif i <= 15:
-                    new_genome.append(Robot.get_random_action())
-                else:
-                    new_genome.append(0)
-            else:
-                if random.randint(0, 1):
-                    new_genome.append(left.genome[i])
-                else:
-                    new_genome.append(right.genome[i])
-
-        return Robot(Genome(*new_genome))
 
 
 class Robot(pygame.sprite.Sprite):
@@ -592,7 +574,54 @@ class Robot(pygame.sprite.Sprite):
         self.hp -= damage
 
     def hit_oob_limit(self):
-        return self.oob_count >= self.OOB_LIMIT
+        return self.oob_count >= self.OOB_LIMIT\
+
+
+    def breed_with(self, other, mutation):
+        start = random.randint(0, len(self.genome) - 1)
+        end = random.randint(0, len(self.genome) - 1)
+
+        if start > end:
+            start, end = end, start
+
+        child_one = list(self.genome[:start]) \
+                    + list(other.genome[start:end]) \
+                    + list(self.genome[end:])
+
+        child_two = list(other.genome[:start]) \
+                    + list(self.genome[start:end]) \
+                    + list(other.genome[end:])
+
+        robot_one = Robot(Genome(*child_one))
+        robot_two = Robot(Genome(*child_two))
+
+        robot_one = robot_one.mutate(mutation)
+        robot_two = robot_two.mutate(mutation)
+
+        return robot_one, robot_two
+
+    def mutate(self, rate):
+        new_genome = []
+        for i, value in enumerate(self.genome):
+            if random.random() <= rate:
+                if i == 0:
+                    new_genome.append(Robot.get_random_chest())
+                elif i == 1:
+                    new_genome.append(Robot.get_random_base())
+                elif i <= 3:
+                    new_genome.append(Robot.get_random_weapon())
+                elif i <= 6:
+                    new_genome.append(Robot.get_random_move())
+                elif i <= 9:
+                    new_genome.append(Robot.get_random_jump())
+                elif i <= 15:
+                    new_genome.append(Robot.get_random_action())
+                else:
+                    new_genome.append(value)
+            else:
+                new_genome.append(value)
+
+        return Robot(Genome(*new_genome))
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -624,7 +653,7 @@ class Bullet(pygame.sprite.Sprite):
 class MeleeRange(pygame.sprite.Sprite):
 
     SIZE = Robot.WIDTH
-    DAMAGE = 40
+    DAMAGE = 25
 
     def __init__(self, attacker):
         pygame.sprite.Sprite.__init__(self)
