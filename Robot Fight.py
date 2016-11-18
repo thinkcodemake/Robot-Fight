@@ -63,7 +63,7 @@ class RobotFight():
         self.gen_iter = None
         self.gen_num = 1
 
-        self.defender = Robot.new_dumb_bot()
+        self.defender = Robot.new_good_bot()
 
     def start(self):
         """
@@ -434,7 +434,30 @@ class Robot(pygame.sprite.Sprite):
             )
         return cls(genome)
 
-    def __init__(self, genome, color=None):
+    @classmethod
+    def new_good_bot(cls):
+        good_values = [
+            int(cls.MAX_CHEST * 0.75),
+            int(cls.MAX_BASE * 0.75),
+            1,
+            2,
+            10,
+            0,
+            -10,
+            0,
+            0,
+            1,
+            0,
+            2,
+            1,
+            1,
+            0,
+            1]
+        print(Genome(*good_values))
+        return cls(Genome(*good_values), direction=-1)
+            
+
+    def __init__(self, genome, direction=1, color=None):
         """
         Initialize the Robot.
         """
@@ -469,6 +492,8 @@ class Robot(pygame.sprite.Sprite):
 
         self.oob_count = 0
 
+        self.direction = direction
+
     def reset(self):
         self.hp = self.genome.chest_size * 2
         self.rect.topleft = (0, 0)
@@ -501,11 +526,11 @@ class Robot(pygame.sprite.Sprite):
     def move(self):
         
         if self.action_phase % 3 == 0:
-            self._move_if_clear(self.genome.move_one, 0)
+            self._move_if_clear(self.genome.move_one * self.direction, 0)
         elif self.action_phase % 3 == 1:
-            self._move_if_clear(self.genome.move_two, 0)
+            self._move_if_clear(self.genome.move_two * self.direction, 0)
         elif self.action_phase % 3 == 2:
-            self._move_if_clear(self.genome.move_three, 0)
+            self._move_if_clear(self.genome.move_three * self.direction, 0)
 
         if not self.on_floor():
             self.vertical += Robot.GRAVITY
@@ -565,7 +590,7 @@ class Robot(pygame.sprite.Sprite):
             self.melee()
 
     def shoot(self):
-        self.bullet_group.add(Bullet(self, 1))
+        self.bullet_group.add(Bullet(self, self.direction))
 
     def melee(self):
         self.melee_group.add(MeleeRange(self))
@@ -574,7 +599,7 @@ class Robot(pygame.sprite.Sprite):
         self.hp -= damage
 
     def hit_oob_limit(self):
-        return self.oob_count >= self.OOB_LIMIT\
+        return self.oob_count >= self.OOB_LIMIT
 
 
     def breed_with(self, other, mutation):
