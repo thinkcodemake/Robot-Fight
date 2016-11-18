@@ -31,13 +31,12 @@ class RobotFight():
     SCREEN_HEIGHT = 500
     FPS = 60
 
-    def __init__(self, debug=False):
+    def __init__(self, size, defender):
         """
-        Initialize game.
+        Initialize the RobotFight game.
+        :param size: Number of bots for each generation.
+        :param defender: Robot of defender to test against.
         """
-
-        self.debug = debug
-
         pygame.init()
 
         self.size = (RobotFight.SCREEN_WIDTH, RobotFight.SCREEN_HEIGHT)
@@ -48,26 +47,21 @@ class RobotFight():
 
         self.timer = pygame.time.Clock()
 
-        self.debug_genome_font = pygame.font.Font(None, 25)
-        self.set_genome_display()
-
-        self.debug_action_font = pygame.font.Font(None, 25)
-        self.set_action_display()
-
-        self.att_hp_font = pygame.font.Font(None, 25)
-        self.def_hp_font = pygame.font.Font(None, 25)
-        self.gen_font = pygame.font.Font(None, 25)
-
-        self.current_gen = Generation.new_random_generation(10)
+        self.genome_display = Display(0, 0)
+        self.gen_display = Display(0, 25)
+        self.att_hp_display = Display(0, 50)
+        self.def_hp_display = Display(0, 75)
+        
+        self.current_gen = Generation.new_random_generation(size)
         self.match = None
         self.gen_iter = None
         self.gen_num = 1
 
-        self.defender = Robot.new_good_bot()
+        self.defender = defender
 
     def start(self):
         """
-        Start Robot Fight.
+        Start the RobotFight simulation.
         """
         self.gen_iter = iter(self.current_gen)
         self.match = Match(next(self.gen_iter), self.defender)
@@ -78,8 +72,9 @@ class RobotFight():
 
     def main_loop(self):
         """
-        Start and run the Main Loop.
+        Begin the main loop of the simulation.
         """
+        
         while(self.running):
 
             for event in pygame.event.get():
@@ -93,45 +88,21 @@ class RobotFight():
             if self.match.running:
                 self.match.update()
 
-                self.set_att_hp_display()
-                self.set_def_hp_display()
-                self.set_gen_display()
-
                 self.screen.fill(self.bg_color)
                 self.match.draw(self.screen)
+                self.draw_displays()
 
-                self.screen.blit(
-                    self.att_hp_display,
-                    self.att_hp_display.get_rect())
-                def_hp_rect = self.def_hp_display.get_rect()
-                def_hp_rect.move_ip(0, 25)
+                if self.match.finished():
+                    print(self.match.get_attacker().fitness,
+                          self.match.end_message)
 
-                self.screen.blit(
-                    self.def_hp_display,
-                    def_hp_rect)
-
-                gen_rect = self.gen_display.get_rect()
-                gen_rect.x = RobotFight.SCREEN_WIDTH - gen_rect.width
-                self.screen.blit(
-                    self.gen_display,
-                    gen_rect)
-
-                ended, fitness = self.match.check_end()
-
-                if ended:
-                    print(fitness, ended)
-                
-
+                    self.match.end()
+                    
             else:
                 try:
                     self.match = Match(next(self.gen_iter), self.defender)
-                    # TODO: Display Match End Condition
                 except StopIteration:
                     self.new_round()
-
-            if self.debug:
-                # Debug Display
-                pass
                 
             self.timer.tick(self.FPS)
             pygame.display.update()
@@ -139,60 +110,75 @@ class RobotFight():
         pygame.quit()
 
     def new_round(self):
-        if self.debug:
-            print()
-            print('New Round')
-            print('=========')
+        """
+        Begin a new round, with a new Generation.
+        """
+        
+        print()
+        print('New Round')
+        print('=========')
         self.gen_num += 1
         self.current_gen = self.current_gen.breed()
         self.gen_iter = iter(self.current_gen)
         self.match = Match(next(self.gen_iter), self.defender)
 
-    def set_genome_display(self):
+    def draw_displays(self):
         """
-        text = '{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}'
-        text = text.format(*self.fighter_bot.sprites()[0].genome)
-        self.debug_genome_display = self.debug_genome_font.render(text,
-                                                                  1,
-                                                                  (0, 0, 0))
+        Generate messages and draw displays to the screen.
         """
-        pass
-    
-    def set_action_display(self):
+        
+        genome_text = '{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}'
+        genome_text = genome_text.format(*self.match.get_attacker().genome)
+        self.genome_display.draw(genome_text, self.screen)
+
+        att_hp_text = 'Attacker HP: {}'
+        att_hp_text = att_hp_text.format(self.match.get_attacker().hp)
+        self.att_hp_display.draw(att_hp_text, self.screen)
+
+        def_hp_text = 'Defender HP: {}'
+        def_hp_text = def_hp_text.format(self.match.get_defender().hp)
+        self.def_hp_display.draw(def_hp_text, self.screen)
+
+        gen_text = 'Generation: {}'
+        gen_text = gen_text.format(self.gen_num)
+        self.gen_display.draw(gen_text, self.screen)
+
+
+class Display():
+
+    def __init__(self, x, y):
+        self.font = pygame.font.Font(None, 25)
+        self.display = None
+        self.message = None
+        self.x = x
+        self.y = y
+
+    def draw(self, message, screen):
         """
-        bot = self.fighter_bot.sprites()[0]
-        text = 'Action #: {}  Action: {}'
-        text = text.format(bot.action_phase, bot.genome[bot.action_phase + 9])
-        self.debug_action_display = self.debug_action_font.render(text,
-                                                                  1,
-                                                                  (0,0,0))
+        Drawn the given message on the display to the screen.
+        :param message: Message to be drawn.
+        :param screen: Screen to draw message to.
         """
-        pass
+        
+        self.display = self.font.render(message, 1, (0, 0, 0))
 
-    def set_att_hp_display(self):
-        text = 'Attacker HP: {}'
-        att = self.match.get_attacker()
-        text = text.format(att.hp)
-        self.att_hp_display = self.att_hp_font.render(text, 1, (0,0,0))
+        rect = self.display.get_rect()
+        rect.move_ip(self.x, self.y)
 
-    def set_def_hp_display(self):
-        text = 'Defender HP: {}'
-        defen = self.match.get_defender()
-        text = text.format(defen.hp)
-        self.def_hp_display = self.def_hp_font.render(text, 1, (0,0,0))
-
-    def set_gen_display(self):
-        text = 'Generation: {}'
-        text = text.format(self.gen_num)
-        self.gen_display = self.gen_font.render(text, 1, (0,0,0))
-
+        screen.blit(self.display, rect)
+        
     
 class Match():
 
-    MAX_TIME = RobotFight.FPS * 60
+    MAX_TIME = RobotFight.FPS * 60  # One Minute
 
     def __init__(self, attacker, defender):
-
+        """
+        Initialize the match.
+        :param attacker: Attacking Robot of the match.
+        :param defender: Defending Robot of the match.
+        """
+        
         self.attacker = pygame.sprite.Group()
         self.defender = pygame.sprite.Group()
         self.att_bullets = pygame.sprite.Group()
@@ -216,6 +202,8 @@ class Match():
             (RobotFight.SCREEN_HEIGHT - Robot.HEIGHT))
 
         self.match_timer = 0
+
+        self.end_mesage = ''
 
     def get_attacker(self):
         return self.attacker.sprites()[0]
@@ -253,20 +241,22 @@ class Match():
         self.def_bullets.empty()
         self.att_melee.empty()
         self.def_melee.empty()
-        
-    def check_end(self):
-        ended = False
-        fitness = self.get_attacker().fitness
+
+    def finished(self):
         if self.get_defender().hp <= 0:
-            self.end()
-            ended = 'Defender Defeated!'
+            self.end_message = 'Defender Defeated!'
+            return True
+        elif self.get_attacker().hp <=0:
+            self.end_message = 'Attacker Defeated!'
+            return True
         elif self.get_attacker().hit_oob_limit():
-            self.end()
-            ended = 'Out of Bounds!'
+            self.end_message = 'Out of Bounds!'
+            return True
         elif self.match_timer >= Match.MAX_TIME:
-            self.end()
-            ended = 'Ran out of time!'
-        return ended, fitness
+            self.end_message = 'Ran out of time!'
+            return True
+        else:
+            return False
 
     def check_collisions(self):
         attacker = self.get_attacker()
@@ -305,8 +295,11 @@ class Generation():
     @classmethod
     def new_random_generation(cls, size, mutation=0.2):
         """
-        Return a new Generation with size number of random robots.
+        Return a new Generation of random robots.
+        :param size: Number of robots in Generation.
+        :param mutation: Mutation rate for the generation.
         """
+        
         robots = []
         
         for i in range(size):
@@ -314,47 +307,63 @@ class Generation():
 
         return cls(robots, mutation)
 
-
     def __init__(self, robots, mutation):
+        """
+        Initialize the Generation.
+        :param robots: Robots of this generation.
+        :param mutation: Generational mutation rate.
+        """
+        
         self.robots = robots
         self.mutation = mutation
 
-
     def __iter__(self):
         return iter(self.robots)
-    
 
     def get_size(self):
         return len(self.robots)
 
-
     def breed(self):
         """
-        Return a new Generation bred from current Generation.
+        Return a new Generation bred from current Generation, using a 2 point
+        crossover.
         """
 
         self.robots.sort(key=lambda x: x.fitness, reverse=True)
 
         new_robots = []
 
-        for i in range((self.get_size() // 2) + 1):
+        i = 0
+
+        while i < self.get_size():
             if i <= 1:
                 bot = self.robots[i]
                 bot.reset()
                 new_robots.append(bot)
-                continue
-            choice_one = random.randint(0, 4)
-            choice_two = random.randint(0, 4)
-            while choice_one == choice_two:
-                choice_two = random.randint(0, 4)
 
-            parent_one = self.robots[choice_one]
-            parent_two = self.robots[choice_two]
+                i += 1
+                continue
+            
+            index_one = random.randint(0, self.get_size() // 2)
+            index_two = random.randint(0, self.get_size() // 2)
+            while index_one == index_two:
+                index_two = random.randint(0, self.get_size() // 2)
+
+            parent_one = self.robots[index_one]
+            parent_two = self.robots[index_two]
 
             child_one, child_two = parent_one.breed_with(parent_two,
-                                                         self.mutation)           
-            new_robots.append(child_one)
-            new_robots.append(child_two)
+                                                         self.mutation)
+
+            if self.get_size() - i > 1:
+                new_robots.append(child_one)
+                new_robots.append(child_two)
+
+                i += 2
+            else:
+                new_robots.append(child_one)
+
+                i += 1
 
         return Generation(new_robots, self.mutation)
 
@@ -453,7 +462,6 @@ class Robot(pygame.sprite.Sprite):
             1,
             0,
             1]
-        print(Genome(*good_values))
         return cls(Genome(*good_values), direction=-1)
             
 
@@ -712,5 +720,5 @@ class MeleeRange(pygame.sprite.Sprite):
             self.kill()
 
 if __name__ == '__main__':
-    game = RobotFight(debug=True)
+    game = RobotFight(10, Robot.new_good_bot())
     game.start()
