@@ -236,6 +236,8 @@ class Match():
         self.running = False
         self.get_defender().reset()
 
+        self.get_attacker().match_time = self.match_timer
+
         self.attacker.empty()
         self.defender.empty()
         self.att_bullets.empty()
@@ -330,7 +332,11 @@ class Generation():
         crossover.
         """
 
+        # Sort by Ascending Match Time
+        self.robots.sort(key=lambda x: x.match_time)
+        # Then Decending Fitness Score.
         self.robots.sort(key=lambda x: x.fitness, reverse=True)
+        # Effectively using time as a tie breaker.
 
         new_robots = []
 
@@ -525,6 +531,7 @@ class Robot(pygame.sprite.Sprite):
         self.vertical = 0
 
         self.fitness = 0
+        self.match_time = RobotFight.FPS * 60  # One Minute Default
 
         self.bullet_group = None
         self.melee_group = None
@@ -543,6 +550,7 @@ class Robot(pygame.sprite.Sprite):
         self.action_switch_count = 0
         self.rect.topleft = (0, 0)
         self.fitness = 0
+        self.match_time = RobotFight.FPS * 60
 
     def set_attack_groups(self, bullet, melee):
         """
