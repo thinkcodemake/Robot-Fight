@@ -58,6 +58,7 @@ class RobotFight():
         self.gen_num = 1
 
         self.defender = defender
+        self.defender.direction = -1
 
     def start(self):
         """
@@ -380,30 +381,27 @@ class Robot(pygame.sprite.Sprite):
     WIDTH = (HEIGHT * 2) / 3
     MAX_ACTIONS = 6
     GRAVITY = 1
-    OOB_LIMIT = RobotFight.FPS * 3
+    OOB_LIMIT = RobotFight.FPS * 3  # 3 Seconds
 
     @classmethod
     def generate_random_genome(cls):
-        """
-        Return a randomly generated genome.
-        """
         return Genome(
-            cls.get_random_chest(),  # chest_size
-            cls.get_random_base(),  # base_size
-            cls.get_random_weapon(),  # arm_one
-            cls.get_random_weapon(),  # arm_two
-            cls.get_random_move(),  # move_one
-            cls.get_random_move(),  # move_two
-            cls.get_random_move(),  # move_three
-            cls.get_random_jump(),  # jump_one
-            cls.get_random_jump(),  # jump_two
-            cls.get_random_jump(),  # jump_three
-            cls.get_random_action(),  # action_one
-            cls.get_random_action(),  # action_two
-            cls.get_random_action(),  # action_three
-            cls.get_random_action(),  # action_four
-            cls.get_random_action(),  # action_five
-            cls.get_random_action(),  # action_six
+            cls.get_random_chest(),
+            cls.get_random_base(),
+            cls.get_random_weapon(),
+            cls.get_random_weapon(),
+            cls.get_random_move(),
+            cls.get_random_move(),
+            cls.get_random_move(),
+            cls.get_random_jump(),
+            cls.get_random_jump(),
+            cls.get_random_jump(),
+            cls.get_random_action(),
+            cls.get_random_action(),
+            cls.get_random_action(),
+            cls.get_random_action(),
+            cls.get_random_action(),
+            cls.get_random_action()
         )
 
     @classmethod
@@ -435,7 +433,34 @@ class Robot(pygame.sprite.Sprite):
         return cls(cls.generate_random_genome())
 
     @classmethod
+    def mutate_genome(self, genome, rate):
+        new_genome = []
+        for i, value in enumerate(genome):
+            if random.random() <= rate:
+                if i == 0:
+                    new_genome.append(Robot.get_random_chest())
+                elif i == 1:
+                    new_genome.append(Robot.get_random_base())
+                elif i <= 3:
+                    new_genome.append(Robot.get_random_weapon())
+                elif i <= 6:
+                    new_genome.append(Robot.get_random_move())
+                elif i <= 9:
+                    new_genome.append(Robot.get_random_jump())
+                elif i <= 15:
+                    new_genome.append(Robot.get_random_action())
+                else:
+                    new_genome.append(value)
+            else:
+                new_genome.append(value)
+
+        return Genome(*new_genome)
+
+    @classmethod
     def new_dumb_bot(cls):
+        """
+        Return a robot that does nothing.
+        """
         genome = Genome(
             cls.MAX_CHEST // 2,
             cls.MIN_BASE,
@@ -445,29 +470,35 @@ class Robot(pygame.sprite.Sprite):
 
     @classmethod
     def new_good_bot(cls):
-        good_values = [
-            int(cls.MAX_CHEST * 0.75),
-            int(cls.MAX_BASE * 0.75),
-            1,
-            2,
-            10,
-            0,
-            -10,
-            0,
-            0,
-            1,
-            0,
-            2,
-            1,
-            1,
-            0,
-            1]
-        return cls(Genome(*good_values), direction=-1)
+        """
+        Return a robot that does a variety of actions.
+        """
+        genome = Genome(
+            chest_size=int(cls.MAX_CHEST * 0.75),
+            base_size=int(cls.MAX_BASE * 0.75),
+            arm_one=1,
+            arm_two=2,
+            move_one=10,
+            move_two=0,
+            move_three=-10,
+            jump_one=0,
+            jump_two=0,
+            jump_three=1,
+            action_one=0,
+            action_two=2,
+            action_three=1,
+            action_four=1,
+            action_five=0,
+            action_six=1)
+        return cls(genome)
             
 
     def __init__(self, genome, direction=1, color=None):
         """
         Initialize the Robot.
+        :param genome: Genome used for the Robot.
+        :param direction: Direction robot should move. 1 or -1
+        :param color: RGB Tuple color of the robot.
         """
 
         pygame.sprite.Sprite.__init__(self)
@@ -488,7 +519,7 @@ class Robot(pygame.sprite.Sprite):
 
         self.rect = self.image.get_rect()
 
-        self.action_phase = 1
+        self.action_phase = 0
         self.action_switch_count = 0
 
         self.vertical = 0
@@ -503,28 +534,36 @@ class Robot(pygame.sprite.Sprite):
         self.direction = direction
 
     def reset(self):
+        """
+        Reset the changing values of the Robot back to default.
+        """
+        
         self.hp = self.genome.chest_size * 2
+        self.action_phase = 0
+        self.action_switch_count = 0
         self.rect.topleft = (0, 0)
         self.fitness = 0
 
     def set_attack_groups(self, bullet, melee):
+        """
+        Assign PyGame Sprite Groups for bullets and melee attacks.
+        :param bullet: Sprite Group for bullets.
+        :param melee: Sprite Group for melees.
+        """
+        
         self.bullet_group = bullet
         self.melee_group = melee
 
     def update(self):
-        """
-        Handle logic.
-        """
         if self.action_switch_count >= RobotFight.FPS:
             self.action_phase += 1
 
-            if self.action_phase > 6:
-                self.action_phase = 1
+            if self.action_phase >= 6:
+                self.action_phase = 0
 
             self.action_switch_count = 0
 
             self.action()
-
             self.check_jump()
 
         self.action_switch_count += 1
@@ -564,7 +603,7 @@ class Robot(pygame.sprite.Sprite):
             self.rect.y = RobotFight.SCREEN_HEIGHT - Robot.HEIGHT
 
     def on_floor(self):
-        return self.rect.y == RobotFight.SCREEN_HEIGHT - Robot.HEIGHT
+        return self.rect.y >= RobotFight.SCREEN_HEIGHT - Robot.HEIGHT
 
     def check_jump(self):
         if self.action_phase % 3 == 0 and self.genome.jump_one:
@@ -576,11 +615,22 @@ class Robot(pygame.sprite.Sprite):
 
     def jump(self):
         self._move_if_clear(0, -1)
-        self.vertical = -10 * (self.genome.chest_size / self.genome.base_size)
+        self.vertical = -10 * (self.genome.base_size / self.genome.chest_size)
 
     def action(self):
 
-        action = self.genome[self.action_phase + 9]
+        if self.action_phase % 6 == 0:
+            action = self.genome.action_one
+        elif self.action_phase % 6 == 1:
+            action = self.genome.action_two
+        elif self.action_phase % 6 == 2:
+            action = self.genome.action_three
+        elif self.action_phase % 6 == 3:
+            action = self.genome.action_four
+        elif self.action_phase % 6 == 4:
+            action = self.genome.action_five
+        elif self.action_phase % 6 == 5:
+            action = self.genome.action_six
         
         if action == 0:
             pass
@@ -609,7 +659,6 @@ class Robot(pygame.sprite.Sprite):
     def hit_oob_limit(self):
         return self.oob_count >= self.OOB_LIMIT
 
-
     def breed_with(self, other, mutation):
         start = random.randint(0, len(self.genome) - 1)
         end = random.randint(0, len(self.genome) - 1)
@@ -625,36 +674,13 @@ class Robot(pygame.sprite.Sprite):
                     + list(self.genome[start:end]) \
                     + list(other.genome[end:])
 
-        robot_one = Robot(Genome(*child_one))
-        robot_two = Robot(Genome(*child_two))
+        genome_one = Robot.mutate_genome(Genome(*child_one), mutation)
+        genome_two = Robot.mutate_genome(Genome(*child_two), mutation)
 
-        robot_one = robot_one.mutate(mutation)
-        robot_two = robot_two.mutate(mutation)
+        robot_one = Robot(genome_one)
+        robot_two = Robot(genome_two)
 
         return robot_one, robot_two
-
-    def mutate(self, rate):
-        new_genome = []
-        for i, value in enumerate(self.genome):
-            if random.random() <= rate:
-                if i == 0:
-                    new_genome.append(Robot.get_random_chest())
-                elif i == 1:
-                    new_genome.append(Robot.get_random_base())
-                elif i <= 3:
-                    new_genome.append(Robot.get_random_weapon())
-                elif i <= 6:
-                    new_genome.append(Robot.get_random_move())
-                elif i <= 9:
-                    new_genome.append(Robot.get_random_jump())
-                elif i <= 15:
-                    new_genome.append(Robot.get_random_action())
-                else:
-                    new_genome.append(value)
-            else:
-                new_genome.append(value)
-
-        return Robot(Genome(*new_genome))
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -675,8 +701,7 @@ class Bullet(pygame.sprite.Sprite):
         
         self.rect = self.image.get_rect()
 
-        self.rect.x = attacker.rect.x
-        self.rect.y = attacker.rect.y
+        self.rect.topleft = attacker.rect.topleft
 
     def update(self):
         self.rect.x += (Bullet.SPEED * self.direction)
