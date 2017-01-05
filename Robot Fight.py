@@ -98,8 +98,8 @@ class RobotFight():
                 self.draw_displays()
 
                 if self.match.finished():
-                    print()
-                    print(self.match.get_attacker().genome)
+                    # print()
+                    # print(self.match.get_attacker().genome)
                     print('    ', self.match.get_attacker().fitness,
                           self.match.end_message)
 
@@ -117,7 +117,6 @@ class RobotFight():
             self.timer.tick(self.FPS)
             pygame.display.update()
 
-        # TODO: Write out file
         with open('out.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             for row in self.out_data:
@@ -170,10 +169,13 @@ class RobotFight():
         
         row.append(self.gen_num)
         row.append(self.match_num)
+        row.append(id(att))
         row += att.genome
         row.append(att.match_time / RobotFight.FPS)
         row.append(att.fitness)
         row.append(self.match.end_message)
+        row.append(att.left_parent)
+        row.append(att.right_parent)
 
         self.out_data.append(row)
 
@@ -328,8 +330,10 @@ class Match():
 
 class Generation():
 
+    DEFAULT_MUTATION = 0.02
+
     @classmethod
-    def new_random_generation(cls, size, mutation=0.2):
+    def new_random_generation(cls, size, mutation=DEFAULT_MUTATION):
         """
         Return a new Generation of random robots.
         :param size: Number of robots in Generation.
@@ -532,7 +536,8 @@ class Robot(pygame.sprite.Sprite):
         return cls(genome)
             
 
-    def __init__(self, genome, direction=1, color=None):
+    def __init__(self, genome, direction=1, color=None,
+                 left_parent=0, right_parent=0):
         """
         Initialize the Robot.
         :param genome: Genome used for the Robot.
@@ -572,6 +577,9 @@ class Robot(pygame.sprite.Sprite):
         self.oob_count = 0
 
         self.direction = direction
+
+        self.left_parent = left_parent
+        self.right_parent = right_parent
 
     def reset(self):
         """
@@ -718,8 +726,12 @@ class Robot(pygame.sprite.Sprite):
         genome_one = Robot.mutate_genome(Genome(*child_one), mutation)
         genome_two = Robot.mutate_genome(Genome(*child_two), mutation)
 
-        robot_one = Robot(genome_one)
-        robot_two = Robot(genome_two)
+        robot_one = Robot(genome_one,
+                          left_parent=id(self),
+                          right_parent=id(other))
+        robot_two = Robot(genome_two,
+                          left_parent=id(self),
+                          right_parent=id(other))
 
         return robot_one, robot_two
 
