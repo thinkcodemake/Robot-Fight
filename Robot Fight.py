@@ -2,6 +2,7 @@ import pygame
 from pygame.locals import *
 from collections import namedtuple
 import random
+import csv
 
 genome_fields = [
     'chest_size',
@@ -56,9 +57,12 @@ class RobotFight():
         self.match = None
         self.gen_iter = None
         self.gen_num = 1
+        self.match_num = 1
 
         self.defender = defender
         self.defender.direction = -1
+
+        self.out_data = []
 
     def start(self):
         """
@@ -67,7 +71,7 @@ class RobotFight():
         self.gen_iter = iter(self.current_gen)
         self.match = Match(next(self.gen_iter), self.defender)
 
-        print('New Round')
+        print('New Round: Generation 1')
         print('=========')
         self.main_loop()
 
@@ -94,20 +98,31 @@ class RobotFight():
                 self.draw_displays()
 
                 if self.match.finished():
-                    print(self.match.get_attacker().fitness,
+                    print()
+                    print(self.match.get_attacker().genome)
+                    print('    ', self.match.get_attacker().fitness,
                           self.match.end_message)
+
+                    self.log_match()
 
                     self.match.end()
                     
             else:
                 try:
                     self.match = Match(next(self.gen_iter), self.defender)
+                    self.match_num += 1
                 except StopIteration:
                     self.new_round()
                 
             self.timer.tick(self.FPS)
             pygame.display.update()
-            
+
+        # TODO: Write out file
+        with open('out.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            for row in self.out_data:
+                writer.writerow(row)
+        
         pygame.quit()
 
     def new_round(self):
@@ -115,10 +130,11 @@ class RobotFight():
         Begin a new round, with a new Generation.
         """
         
-        print()
-        print('New Round')
-        print('=========')
         self.gen_num += 1
+        self.match_num = 1
+        print()
+        print('New Round: Generation {0}'.format(self.gen_num))
+        print('=========')
         self.current_gen = self.current_gen.breed()
         self.gen_iter = iter(self.current_gen)
         self.match = Match(next(self.gen_iter), self.defender)
@@ -143,6 +159,23 @@ class RobotFight():
         gen_text = 'Generation: {}'
         gen_text = gen_text.format(self.gen_num)
         self.gen_display.draw(gen_text, self.screen)
+
+    def log_match(self):
+        """
+        Logs the match in out_data.
+        """
+        row = []
+
+        att = self.match.get_attacker()
+        
+        row.append(self.gen_num)
+        row.append(self.match_num)
+        row += att.genome
+        row.append(att.match_time / RobotFight.FPS)
+        row.append(att.fitness)
+        row.append(self.match.end_message)
+
+        self.out_data.append(row)
 
 
 class Display():
